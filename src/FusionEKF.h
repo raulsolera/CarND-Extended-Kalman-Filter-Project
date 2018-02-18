@@ -11,25 +11,30 @@
 
 class FusionEKF {
 public:
-  /**
-  * Constructor.
-  */
-  FusionEKF();
+    /**
+     * Constructor.
+     */
+    FusionEKF();
 
-  /**
-  * Destructor.
-  */
-  virtual ~FusionEKF();
+    /**
+     * Destructor.
+     */
+    virtual ~FusionEKF();
 
-  /**
-  * Run the whole flow of the Kalman Filter from here.
-  */
-  void ProcessMeasurement(const MeasurementPackage &measurement_pack);
+    /**
+     * Run the whole flow of the Kalman Filter from here.
+     */
+    void ProcessMeasurement(const MeasurementPackage &measurement_pack);
 
-  /**
-  * Kalman Filter update and prediction math lives in here.
-  */
-  KalmanFilter ekf_;
+    /**
+     * Kalman Filter update and prediction math lives in here.
+     */
+    KalmanFilter ekf_;
+    
+    // booleans to deal with sensor selection
+    bool meas_processed = true;
+    bool useRadar = true;
+    bool useLaser = true;
 
 private:
   // check whether the tracking toolbox was initialized or not (first measurement)
