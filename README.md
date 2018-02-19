@@ -55,20 +55,20 @@ This equations assumed linearity, however for the radar the projection of the st
 To implement the algorithm it is important to initialize some of the variable and matrixes:
 - The state `x` is initialize using the first measurement receive and we initialized the position px and py but set the initial velocity to 0 as we can not infer it from the measurement (although the radar gives us the velocity but it is measure in the direction of the line formed by the sensor and the vehicle and this direction does not have to be the same as the velocity direction and hence it will be as inaccurate to derive it from the radar measurement as to set it to zero).
 - The transition matrix `F` needs the time interval between measurements and hence the first measurement is used to set the initial timestamp:  
-`1    0   dt    0  
-0    1    0   dt  
-0    0    1    0  
-0    0    0    1`  
+`1    0   dt    0`  
+`0    1    0   dt`  
+`0    0    1    0`  
+`0    0    0    1`  
 
 - The covariance matrix `P` is initialize with a high value for the velocity as we don't know it:  
-`1    0    0    0  
-0    1    0    0  
-0    0 1000    0  
-0    0    0 1000`  
+`1    0    0    0`  
+`0    1    0    0`  
+`0    0 1000    0`  
+`0    0    0 1000`  
 
 - The projection matrix `H` for the Lidar is fix:  
-`1    0    0    0  
-0    1    0    0`  
+`1    0    0    0`  
+`0    1    0    0`  
 
 - Whereas for the Radar is the Jacobian `Hj` that has to calculated in each update step.
 
