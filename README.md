@@ -1,86 +1,80 @@
-# Extended Kalman Filter Project Starter Code
+# Carnd Extended Kalman Filter Project
+
 Self-Driving Car Engineer Nanodegree Program
 
-In this project you will utilize a kalman filter to estimate the state of a moving object of interest with noisy lidar and radar measurements. Passing the project requires obtaining RMSE values that are lower than the tolerance outlined in the project rubric. 
+This project consist in the implementation of a kalman filter in C++ and testing it with a simulator provided by Udacity ([download here](https://github.com/udacity/self-driving-car-sim/releases)) that generates noisy Radar an Lidar measurements. The communication between the simulator and the EKF is done using WebSocket using the uWebSockets implementation (this repository includes scripts for Mac Os: install-mac.sh and Ubuntu: install-ubuntu.sh to install uWebSockets).
 
-This project involves the Term 2 Simulator which can be downloaded [here](https://github.com/udacity/self-driving-car-sim/releases)
 
-This repository includes two files that can be used to set up and install [uWebSocketIO](https://github.com/uWebSockets/uWebSockets) for either Linux or Mac systems. For windows you can use either Docker, VMware, or even [Windows 10 Bash on Ubuntu](https://www.howtogeek.com/249966/how-to-install-and-use-the-linux-bash-shell-on-windows-10/) to install uWebSocketIO. Please see [this concept in the classroom](https://classroom.udacity.com/nanodegrees/nd013/parts/40f38239-66b6-46ec-ae68-03afd8a601c8/modules/0949fca6-b379-42af-a919-ee50aa304e6a/lessons/f758c44c-5e40-4e01-93b5-1a82aa4e044f/concepts/16cf4a78-4fc7-49e1-8621-3450ca938b77) for the required version and installation scripts.
+## Compiling and executing the project
 
 Once the install for uWebSocketIO is complete, the main program can be built and run by doing the following from the project top directory.
 
-1. mkdir build
-2. cd build
-3. cmake ..
-4. make
-5. ./ExtendedKF
+1. Clone the repo and cd to it on a Terminal.
+2. (Within the project repo) mkdir build
+3. cd build
+4. cmake ..
+5. make
+6. ./ExtendedKF
 
-Tips for setting up your environment can be found [here](https://classroom.udacity.com/nanodegrees/nd013/parts/40f38239-66b6-46ec-ae68-03afd8a601c8/modules/0949fca6-b379-42af-a919-ee50aa304e6a/lessons/f758c44c-5e40-4e01-93b5-1a82aa4e044f/concepts/23d376c7-0195-4276-bdf0-e02f1f3c665d)
+## Kalman filter for Dummies
 
-Note that the programs that need to be written to accomplish the project are src/FusionEKF.cpp, src/FusionEKF.h, kalman_filter.cpp, kalman_filter.h, tools.cpp, and tools.h
+A Kalman filter is an algorithm that "uses a series of measurements observed over time, containing statistical noise and other inaccuracies, and produces estimates of unknown variables that tend to be more accurate than those based on a single measurement alone" ([wikipedia](https://en.wikipedia.org/wiki/Kalman_filter)).
 
-The program main.cpp has already been filled out, but feel free to modify it.
+In practice this consists in predicting a future state based in a transition model (from actual state to future state) that has some noise and model inaccuracies (predict step) and correct this prediction based in a measurement provided by a sensor that also has noise (update state). 
 
-Here is the main protcol that main.cpp uses for uWebSocketIO in communicating with the simulator.
+For this particular project the state is represented by position and velocity in an xy plane given by the vector: (px, py, vx, vy). **The predict step** is given by the equation:
+`x' = f(x) + u`
+Where f(x) is assumed to be a linear function `F*x` and u is the noise of the transition model assumed to be a normal distribution with zero mean (in this case representing the unknown acceleration and other possible inacuracies).
+The prediction step also implies the update of the covariance uncertainty matrix `P` of the transition model:
+`P' = F*P*Ftrans + Q`
+Where Q represents the transition noise.
+
+Then in the **the update step** we will compare the predicted state with the measurement received by the sensor and adjust the predicted state considering the covariance uncertainty matrix and the measurement noise. This process follows the following equations:
+`y = z - H*x'`
+Where z is the measurement provided by the sensor and H is the matrix that projects the state in the measurement space.
+`S = H*P'*Htrans + R`
+Where R represents the measurement noise.
+`K = P'*Htrans*Sinv`
+And finally:
+`x = x' + K*y`
+`P = (I - K*H)*P'`
+
+This equations assumed linearity, however for the radar the projection of the state in the measurement space is not given by a linear function and hence we used the first order taylor expansion of the projection h(x) which is given by the Jacobian matrix Hj.
+
+To implement the algorithm it is important to initialize some of the variable and matrixes:
+- The state x is initialize using the first measurement receive and we initialized the position px and py but set the initial velocity to 0 as we can not infer it from the measurement (although the radar gives us the velocity but it is measure in the direction of the line formed by the sensor and the vehicle and this direction does not have to be the same as the velocity direction and hence it will be as inaccurate to derive it from the radar measurement as to set it to zero).
+- The transition matrix F needs the time interval between measurements and hence the first measurement is used to set the initial timestamp:
+$$
+\left(\begin{array}{cc} 
+1 & 0 & dt & 0\\
+0 & 1 & 0 & dt\\
+0 & 0 & 1 & 0\\
+0 & 0 & 0 & 1
+\end{array}\right)
+$$
+
+- The covariance matrix is initialize with a high value for the velocity as we don't know it:
+$$
+\left(\begin{array}{cc} 
+1 & 0 & 0 & 0\\
+0 & 1 & 0 & 0\\
+0 & 0 & 1000 & 0\\
+0 & 0 & 0 & 1000
+\end{array}\right)
+$$
+
+- The projection matrix for the Lidar is fix:
+\left(\begin{array}{cc} 
+1 & 0 & 0 & 0\\
+0 & 1 & 0 & 0
+\end{array}\right)
+$$
+
+- Whereas for the Radar is the Jacobian that has to calculated in each update step.
 
 
-INPUT: values provided by the simulator to the c++ program
-
-["sensor_measurement"] => the measurement that the simulator observed (either lidar or radar)
 
 
-OUTPUT: values provided by the c++ program to the simulator
-
-["estimate_x"] <= kalman filter estimated position x
-["estimate_y"] <= kalman filter estimated position y
-["rmse_x"]
-["rmse_y"]
-["rmse_vx"]
-["rmse_vy"]
-
----
-
-## Other Important Dependencies
-
-* cmake >= 3.5
-  * All OSes: [click here for installation instructions](https://cmake.org/install/)
-* make >= 4.1 (Linux, Mac), 3.81 (Windows)
-  * Linux: make is installed by default on most Linux distros
-  * Mac: [install Xcode command line tools to get make](https://developer.apple.com/xcode/features/)
-  * Windows: [Click here for installation instructions](http://gnuwin32.sourceforge.net/packages/make.htm)
-* gcc/g++ >= 5.4
-  * Linux: gcc / g++ is installed by default on most Linux distros
-  * Mac: same deal as make - [install Xcode command line tools](https://developer.apple.com/xcode/features/)
-  * Windows: recommend using [MinGW](http://www.mingw.org/)
-
-## Basic Build Instructions
-
-1. Clone this repo.
-2. Make a build directory: `mkdir build && cd build`
-3. Compile: `cmake .. && make` 
-   * On windows, you may need to run: `cmake .. -G "Unix Makefiles" && make`
-4. Run it: `./ExtendedKF `
-
-## Editor Settings
-
-We've purposefully kept editor configuration files out of this repo in order to
-keep it as simple and environment agnostic as possible. However, we recommend
-using the following settings:
-
-* indent using spaces
-* set tab width to 2 spaces (keeps the matrices in source code aligned)
-
-## Code Style
-
-Please (do your best to) stick to [Google's C++ style guide](https://google.github.io/styleguide/cppguide.html).
-
-## Generating Additional Data
-
-This is optional!
-
-If you'd like to generate your own radar and lidar data, see the
-[utilities repo](https://github.com/udacity/CarND-Mercedes-SF-Utilities) for
-Matlab scripts that can generate additional data.
 
 ## Project Instructions and Rubric
 
